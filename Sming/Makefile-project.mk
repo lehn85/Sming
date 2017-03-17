@@ -12,11 +12,11 @@
 # Default COM port speed (generic)
 COM_SPEED ?= 115200
 
-# Default COM port speed (used for flashing)
-COM_SPEED_ESPTOOL ?= $(COM_SPEED)
-
-# Default COM port speed (used in code)
-COM_SPEED_SERIAL  ?= $(COM_SPEED)
+# My override
+# com speed for download tool
+COM_SPEED_ESPTOOL	?= 921600
+# com speed for code
+COM_SPEED_SERIAL ?= 115200
 
 # Disable CommandExecutor functionality if not used and save some ROM and RAM.
 ENABLE_CMD_EXECUTOR ?= 1
@@ -49,7 +49,7 @@ INIT_BIN_ADDR =  0x7c000
 BLANK_BIN_ADDR =  0x4b000
 
 # esptool2 path
-ESPTOOL2 ?= esptool2
+ESPTOOL2 ?= $(SMING_HOME)/esptool2/esptool2
 # esptool2 parameters for rBootLESS images
 ESPTOOL2_SECTS		?= .text .data .rodata
 ESPTOOL2_MAIN_ARGS	?= -quiet -bin -boot0
@@ -146,7 +146,8 @@ FW_BASE		= out/firmware
 # 0x01000    is the size of one sector
 # IMAGE_SDK  contains starting address of the irom0 section and its size
 # 0xFFFF000  mask that is used to show the start of a sector
-SPIFF_START_OFFSET = $(shell printf '0x%X\n' $$(( ($$($(GET_FILESIZE) $(FW_BASE)/$(IMAGE_SDK)) + 0x1000 + $(basename $(IMAGE_SDK))) & (0xFFFFF000) )) )
+# lehn85 changed: ?= instead of =
+SPIFF_START_OFFSET ?= $(shell printf '0x%X\n' $$(( ($$($(GET_FILESIZE) $(FW_BASE)/$(IMAGE_SDK)) + 0x1000 + $(basename $(IMAGE_SDK))) & (0xFFFFF000) )) )
 
 #Firmware memory layout info files
 FW_MEMINFO_NEW = $(FW_BASE)/fwMeminfo.new
@@ -170,7 +171,7 @@ endif
 MODULES      ?= app     # default to app if not set by user
 EXTRA_INCDIR ?= include # default to include if not set by user
 
-ENABLE_CUSTOM_LWIP ?= 1
+ENABLE_CUSTOM_LWIP ?= 0
 ifeq ($(ENABLE_CUSTOM_LWIP), 1)
 	LWIP_INCDIR = $(SMING_HOME)/third-party/esp-open-lwip/include	
 endif
@@ -242,10 +243,9 @@ endif
 # we will use global WiFi settings from Eclipse Environment Variables, if possible
 WIFI_SSID ?= ""
 WIFI_PWD ?= ""
+# lehn85: changed to one if, incase wifi has no password
 ifneq ($(WIFI_SSID), "")
 	CFLAGS += -DWIFI_SSID=\"$(WIFI_SSID)\"
-endif
-ifneq ($(WIFI_PWD), "")
 	CFLAGS += -DWIFI_PWD=\"$(WIFI_PWD)\"
 endif
 ifeq ($(DISABLE_SPIFFS), 1)
@@ -257,7 +257,8 @@ LDFLAGS		= -nostdlib -u call_user_start -Wl,-static -Wl,--gc-sections -Wl,-Map=$
 
 # linker script used for the above linkier step
 LD_PATH     = $(SMING_HOME)/compiler/ld
-LD_SCRIPT	= standalone.rom.ld
+# lehn85: changed = to ?=
+LD_SCRIPT	?= standalone.rom.ld
 
 ifeq ($(SPI_SPEED), 26)
 	flashimageoptions = -ff 26m
@@ -458,6 +459,25 @@ else
 endif
 	$(TERMINAL)
 
+#lehn85 added more options when flash
+flash_apponly:
+	$(vecho) "Flash app only"
+	-$(Q) $(KILL_TERM)
+	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN)
+	$(TERMINAL)
+	
+flash_app:
+	$(vecho) "Flash app+sdk"
+	-$(Q) $(KILL_TERM)
+	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN) $(basename $(IMAGE_SDK)) $(FW_BASE)/$(IMAGE_SDK)
+	$(TERMINAL)
+	
+flash_spiffs:
+	$(vecho) "Flash spiffs rom"
+	-$(Q) $(KILL_TERM)
+	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(SPIFF_START_OFFSET) $(SPIFF_BIN_OUT)
+	$(TERMINAL)	
+	
 terminal:
 	$(vecho) "Killing Terminal to free $(COM_PORT)"
 	-$(Q) $(KILL_TERM)
