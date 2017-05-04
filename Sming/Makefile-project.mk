@@ -496,10 +496,15 @@ clean:
 		mv $(FW_MEMINFO_NEW) $(FW_MEMINFO_SAVED); \
 	fi
 #remove build artifacts
+	$(vecho) "Remove APP_AR: $(APP_AR)"
 	$(Q) rm -f $(APP_AR)
+	$(vecho) "Remove TARGET_OUT: $(TARGET_OUT)"
 	$(Q) rm -f $(TARGET_OUT)
+	$(vecho) "Remove BUILD_DIR: $(BUILD_DIR)"
 	$(Q) rm -rf $(BUILD_DIR)
+	$(vecho) "Remove BUILD_BASE: $(BUILD_BASE)"
 	$(Q) rm -rf $(BUILD_BASE)
+	$(vecho) "Remove FW_BASE: $(FW_BASE)"
 	$(Q) rm -rf $(FW_BASE)
 
 $(foreach bdir,$(BUILD_DIR),$(eval $(call compile-objects,$(bdir))))
