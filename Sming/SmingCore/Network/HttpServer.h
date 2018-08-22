@@ -10,6 +10,12 @@
  *
  ****/
 
+/** @defgroup   httpserver HTTP server
+ *  @brief      Provides powerful HTTP/S + Websocket server
+ *  @ingroup    tcpserver
+ *  @{
+ */
+
 #ifndef _SMING_CORE_HTTPSERVER_H_
 #define _SMING_CORE_HTTPSERVER_H_
 
@@ -24,17 +30,18 @@
 #include "Http/HttpBodyParser.h"
 
 typedef struct {
-	int maxActiveConnections = 10; // << the maximum number of concurrent requests..
-	int keepAliveSeconds = 5; // << the default seconds to keep the connection alive before closing it
-	int minHeapSize = -1; // << defines the min heap size that is required to accept connection.
-					      //  -1 - means use server default
+	int maxActiveConnections = 10;  // << the maximum number of concurrent requests..
+	int keepAliveSeconds = 0;		// << the default seconds to keep the connection alive before closing it
+	int minHeapSize = -1;			// << defines the min heap size that is required to accept connection.
+									//  -1 - means use server default
 	bool useDefaultBodyParsers = 1; // << if the default body parsers,  as form-url-encoded, should be used
 #ifdef ENABLE_SSL
-	int sslSessionCacheSize = 10; // << number of SSL session ids to cache. Setting this to 0 will disable SSL session resumption.
+	int sslSessionCacheSize =
+		10; // << number of SSL session ids to cache. Setting this to 0 will disable SSL session resumption.
 #endif
 } HttpServerSettings;
 
-class HttpServer: public TcpServer
+class HttpServer : public TcpServer
 {
 	friend class HttpServerConnection;
 
@@ -43,11 +50,20 @@ public:
 	HttpServer(HttpServerSettings settings);
 	virtual ~HttpServer();
 
-	/*
+	/**
 	 * @brief Allows changing the server configuration
 	 */
 	void configure(HttpServerSettings settings);
 
+	/**
+	 * @briefs Allows content-type specific parsing of the body based on content-type.
+	 *
+	 * @param const String& contentType. Can be full content-type like 'application/json', or 'application/*'  or '*'.
+	 * 						If there is exact match for the content-type wildcard content-types will not be used.
+	 * 						There can be only one catch-all '*' body parser and that will be the last registered
+	 *
+	 * @param  HttpBodyParserDelegate parser
+	 */
 	void setBodyParser(const String& contentType, HttpBodyParserDelegate parser);
 
 	/**
@@ -62,10 +78,8 @@ public:
 	void setDefaultHandler(const HttpPathDelegate& callback);
 	void setDefaultResource(HttpResource* resource);
 
-
 protected:
-	virtual TcpConnection* createClient(tcp_pcb *clientTcp);
-	virtual void onConnectionClose(TcpClient& connection, bool success);
+	virtual TcpConnection* createClient(tcp_pcb* clientTcp);
 
 protected:
 #ifdef ENABLE_SSL
@@ -78,4 +92,5 @@ private:
 	BodyParsers bodyParsers;
 };
 
+/** @} */
 #endif /* _SMING_CORE_HTTPSERVER_H_ */

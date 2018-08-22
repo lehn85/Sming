@@ -9,17 +9,24 @@ BssList networks;
 String network, password;
 Timer connectionTimer;
 
-void onIndex(HttpRequest &request, HttpResponse &response)
+String lastModified;
+
+void onIndex(HttpRequest& request, HttpResponse& response)
 {
-	TemplateFileStream *tmpl = new TemplateFileStream("index.html");
-	auto &vars = tmpl->variables();
+	TemplateFileStream* tmpl = new TemplateFileStream("index.html");
+	auto& vars = tmpl->variables();
 	response.sendTemplate(tmpl); // will be automatically deleted
 }
 
-void onIpConfig(HttpRequest &request, HttpResponse &response)
+int onIpConfig(HttpServerConnection& connection, HttpRequest& request, HttpResponse& response)
 {
-	if (request.method == HTTP_POST)
-	{
+	if(request.method == HTTP_POST) {
+		debugf("Request coming from IP: %s", (char*)connection.getRemoteIp());
+		// If desired you can also limit the access based on remote IP. Example below:
+		//		if(!(IPAddress("192.168.4.23") == connection.getRemoteIp())) {
+		//			return 1; // error
+		//		}
+
 		AppSettings.dhcp = request.getPostParameter("dhcp") == "1";
 		AppSettings.ip = request.getPostParameter("ip");
 		AppSettings.netmask = request.getPostParameter("netmask");
@@ -28,45 +35,52 @@ void onIpConfig(HttpRequest &request, HttpResponse &response)
 		AppSettings.save();
 	}
 
-	TemplateFileStream *tmpl = new TemplateFileStream("settings.html");
-	auto &vars = tmpl->variables();
+	TemplateFileStream* tmpl = new TemplateFileStream("settings.html");
+	auto& vars = tmpl->variables();
 
 	bool dhcp = WifiStation.isEnabledDHCP();
 	vars["dhcpon"] = dhcp ? "checked='checked'" : "";
 	vars["dhcpoff"] = !dhcp ? "checked='checked'" : "";
 
-	if (!WifiStation.getIP().isNull())
-	{
+	if(!WifiStation.getIP().isNull()) {
 		vars["ip"] = WifiStation.getIP().toString();
 		vars["netmask"] = WifiStation.getNetworkMask().toString();
 		vars["gateway"] = WifiStation.getNetworkGateway().toString();
-	}
-	else
-	{
+	} else {
 		vars["ip"] = "192.168.1.77";
 		vars["netmask"] = "255.255.255.0";
 		vars["gateway"] = "192.168.1.1";
 	}
 
 	response.sendTemplate(tmpl); // will be automatically deleted
+
+	return 0;
 }
 
-void onFile(HttpRequest &request, HttpResponse &response)
+void onFile(HttpRequest& request, HttpResponse& response)
 {
+	if(lastModified.length() > 0 && request.getHeader("If-Modified-Since").equals(lastModified)) {
+		response.code = HTTP_STATUS_NOT_MODIFIED;
+		return;
+	}
+
 	String file = request.getPath();
-	if (file[0] == '/')
+	if(file[0] == '/')
 		file = file.substring(1);
 
-	if (file[0] == '.')
+	if(file[0] == '.')
 		response.forbidden();
-	else
-	{
+	else {
+		if(lastModified.length() > 0) {
+			response.setHeader("Last-Modified", lastModified);
+		}
+
 		response.setCache(86400, true); // It's important to use cache for better performance.
 		response.sendFile(file);
 	}
 }
 
-void onAjaxNetworkList(HttpRequest &request, HttpResponse &response)
+void onAjaxNetworkList(HttpRequest& request, HttpResponse& response)
 {
 	JsonObjectStream* stream = new JsonObjectStream();
 	JsonObject& json = stream->getRoot();
@@ -75,17 +89,16 @@ void onAjaxNetworkList(HttpRequest &request, HttpResponse &response)
 
 	bool connected = WifiStation.isConnected();
 	json["connected"] = connected;
-	if (connected)
-	{
+	if(connected) {
 		// Copy full string to JSON buffer memory
-		json["network"]= WifiStation.getSSID();
+		json["network"] = WifiStation.getSSID();
 	}
 
 	JsonArray& netlist = json.createNestedArray("available");
-	for (int i = 0; i < networks.count(); i++)
-	{
-		if (networks[i].hidden) continue;
-		JsonObject &item = netlist.createNestedObject();
+	for(int i = 0; i < networks.count(); i++) {
+		if(networks[i].hidden)
+			continue;
+		JsonObject& item = netlist.createNestedObject();
 		item["id"] = (int)networks[i].getHashId();
 		// Copy full string to JSON buffer memory
 		item["title"] = networks[i].ssid;
@@ -109,7 +122,7 @@ void makeConnection()
 	network = ""; // task completed
 }
 
-void onAjaxConnect(HttpRequest &request, HttpResponse &response)
+void onAjaxConnect(HttpRequest& request, HttpResponse& response)
 {
 	JsonObjectStream* stream = new JsonObjectStream();
 	JsonObject& json = stream->getRoot();
@@ -120,31 +133,26 @@ void onAjaxConnect(HttpRequest &request, HttpResponse &response)
 	bool updating = curNet.length() > 0 && (WifiStation.getSSID() != curNet || WifiStation.getPassword() != curPass);
 	bool connectingNow = WifiStation.getConnectionStatus() == eSCS_Connecting || network.length() > 0;
 
-	if (updating && connectingNow)
-	{
-		debugf("wrong action: %s %s, (updating: %d, connectingNow: %d)", network.c_str(), password.c_str(), updating, connectingNow);
+	if(updating && connectingNow) {
+		debugf("wrong action: %s %s, (updating: %d, connectingNow: %d)", network.c_str(), password.c_str(), updating,
+			   connectingNow);
 		json["status"] = (bool)false;
 		json["connected"] = (bool)false;
-	}
-	else
-	{
+	} else {
 		json["status"] = (bool)true;
-		if (updating)
-		{
+		if(updating) {
 			network = curNet;
 			password = curPass;
 			debugf("CONNECT TO: %s %s", network.c_str(), password.c_str());
 			json["connected"] = false;
 			connectionTimer.initializeMs(1200, makeConnection).startOnce();
-		}
-		else
-		{
+		} else {
 			json["connected"] = WifiStation.isConnected();
 			debugf("Network already selected. Current status: %s", WifiStation.getConnectionStatusName());
 		}
 	}
 
-	if (!updating && !connectingNow && WifiStation.isConnectionFailed())
+	if(!updating && !connectingNow && WifiStation.isConnectionFailed())
 		json["error"] = WifiStation.getConnectionStatusName();
 
 	response.setAllowCrossDomainOrigin("*");
@@ -163,8 +171,9 @@ void startWebServer()
 
 void startFTP()
 {
-	if (!fileExist("index.html"))
-		fileSetContent("index.html", "<h3>Please connect to FTP and upload files from folder 'web/build' (details in code)</h3>");
+	if(!fileExist("index.html"))
+		fileSetContent("index.html",
+					   "<h3>Please connect to FTP and upload files from folder 'web/build' (details in code)</h3>");
 
 	// Start FTP server
 	ftp.listen(21);
@@ -180,18 +189,23 @@ void startServers()
 
 void networkScanCompleted(bool succeeded, BssList list)
 {
-	if (succeeded)
-	{
-		for (int i = 0; i < list.count(); i++)
-			if (!list[i].hidden && list[i].ssid.length() > 0)
+	if(succeeded) {
+		for(int i = 0; i < list.count(); i++)
+			if(!list[i].hidden && list[i].ssid.length() > 0)
 				networks.add(list[i]);
 	}
-	networks.sort([](const BssInfo& a, const BssInfo& b){ return b.rssi - a.rssi; } );
+	networks.sort([](const BssInfo& a, const BssInfo& b) { return b.rssi - a.rssi; });
 }
 
 void init()
 {
 	spiffs_mount(); // Mount file system, in order to work with files
+
+	if(fileExist(".lastModified")) {
+		// The last modification
+		lastModified = fileGetContent(".lastModified");
+		lastModified.trim();
+	}
 
 	Serial.begin(SERIAL_BAUD_RATE); // 115200 by default
 	Serial.systemDebugOutput(true); // Enable debug output to serial
@@ -199,10 +213,9 @@ void init()
 
 	WifiStation.enable(true);
 
-	if (AppSettings.exist())
-	{
+	if(AppSettings.exist()) {
 		WifiStation.config(AppSettings.ssid, AppSettings.password);
-		if (!AppSettings.dhcp && !AppSettings.ip.isNull())
+		if(!AppSettings.dhcp && !AppSettings.ip.isNull())
 			WifiStation.setIP(AppSettings.ip, AppSettings.netmask, AppSettings.gateway);
 	}
 

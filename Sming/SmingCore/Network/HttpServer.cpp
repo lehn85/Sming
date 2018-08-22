@@ -17,7 +17,7 @@
 
 HttpServer::HttpServer()
 {
-	settings.keepAliveSeconds = 10;
+	settings.keepAliveSeconds = 0;
 	configure(settings);
 }
 
@@ -26,7 +26,8 @@ HttpServer::HttpServer(HttpServerSettings settings)
 	configure(settings);
 }
 
-void HttpServer::configure(HttpServerSettings settings) {
+void HttpServer::configure(HttpServerSettings settings)
+{
 	this->settings = settings;
 	if(settings.minHeapSize != -1 && settings.minHeapSize > -1) {
 		minHeapSize = settings.minHeapSize;
@@ -44,7 +45,7 @@ void HttpServer::configure(HttpServerSettings settings) {
 
 HttpServer::~HttpServer()
 {
-	for(int i=0; i< resourceTree.count(); i++) {
+	for(int i = 0; i < resourceTree.count(); i++) {
 		if(resourceTree.valueAt(i) != NULL) {
 			delete resourceTree.valueAt(i);
 		}
@@ -56,25 +57,21 @@ void HttpServer::setBodyParser(const String& contentType, HttpBodyParserDelegate
 	bodyParsers[contentType] = parser;
 }
 
-TcpConnection* HttpServer::createClient(tcp_pcb *clientTcp)
+TcpConnection* HttpServer::createClient(tcp_pcb* clientTcp)
 {
 	HttpServerConnection* con = new HttpServerConnection(clientTcp);
 	con->setResourceTree(&resourceTree);
 	con->setBodyParsers(&bodyParsers);
-	con->setCompleteDelegate(TcpClientCompleteDelegate(&HttpServer::onConnectionClose, this));
-
-	totalConnections++;
-	debugf("Opening connection. Total connections: %d", totalConnections);
 
 	return con;
 }
 
 void HttpServer::addPath(String path, const HttpPathDelegate& callback)
 {
-	if (path.length() > 1 && path.endsWith("/")) {
+	if(path.length() > 1 && path.endsWith("/")) {
 		path = path.substring(0, path.length() - 1);
 	}
-	debugf("'%s' registered", path.c_str());
+	debug_i("'%s' registered", path.c_str());
 
 	HttpCompatResource* resource = new HttpCompatResource(callback);
 	resourceTree[path] = resource;
@@ -85,21 +82,19 @@ void HttpServer::setDefaultHandler(const HttpPathDelegate& callback)
 	addPath("*", callback);
 }
 
-void HttpServer::addPath(const String& path, const HttpResourceDelegate& onRequestComplete) {
+void HttpServer::addPath(const String& path, const HttpResourceDelegate& onRequestComplete)
+{
 	HttpResource* resource = new HttpResource;
 	resource->onRequestComplete = onRequestComplete;
 	resourceTree[path] = resource;
 }
 
-void HttpServer::addPath(const String& path, HttpResource* resource) {
+void HttpServer::addPath(const String& path, HttpResource* resource)
+{
 	resourceTree[path] = resource;
 }
 
-void HttpServer::setDefaultResource(HttpResource* resource) {
+void HttpServer::setDefaultResource(HttpResource* resource)
+{
 	addPath("*", resource);
-}
-
-void HttpServer::onConnectionClose(TcpClient& connection, bool success) {
-	totalConnections--;
-	debugf("Closing connection. Total connections: %d", totalConnections);
 }

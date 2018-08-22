@@ -5,6 +5,13 @@
  * All files of the Sming Core are provided under the LGPL v3 license.
  ****/
 
+/** @defgroup   url URL
+ *  @brief      Provides URL handling
+ *  @ingroup    httpserver
+ *  @ingroup    httpclient
+ *  @{
+ */
+
 #ifndef _SMING_CORE_NETWORK_URL_H_
 #define _SMING_CORE_NETWORK_URL_H_
 
@@ -20,15 +27,27 @@ public:
 	URL();
 	URL(const String& urlString);
 
-	inline String toString() { return Protocol + "://" + Host + (Port != 0 ? ":" + String(Port) : "") + getPathWithQuery(); }
-	inline String getPathWithQuery() { if (Path.length() + Query.length() > 0) return Path + Query; else return "/"; }
+	inline String toString()
+	{
+		return Protocol + "://" + Host + (Port != 0 ? ":" + String(Port) : "") + getPathWithQuery();
+	}
+	inline String getPathWithQuery()
+	{
+		if(Path.length() + Query.length() > 0)
+			return Path + Query;
+		else
+			return "/";
+	}
 
 public:
 	String Protocol;
+	String User;
+	String Password;
 	String Host;
 	int Port;
 	String Path;
 	String Query;
 };
 
+/** @} */
 #endif /* _SMING_CORE_NETWORK_URL_H_ */

@@ -27,7 +27,6 @@ void WebsocketClient::setWebSocketDisconnectedHandler(WebSocketClientDisconnectD
 	wsDisconnect = handler;
 }
 
-
 void WebsocketClient::setWebSocketConnectedHandler(WebSocketClientConnectedDelegate handler)
 {
 	wsConnect = handler;
@@ -41,30 +40,26 @@ bool WebsocketClient::connect(String url, uint32_t sslOptions /* = 0 */)
 	if(_uri.Protocol == WEBSCOKET_SECURE_URL_PROTOCOL) {
 		useSsl = true;
 	}
-	TcpClient::connect(_uri.Host,_uri.Port, useSsl, sslOptions);
-	debugf("Connecting to Server");
+	TcpClient::connect(_uri.Host, _uri.Port, useSsl, sslOptions);
+	debug_d("Connecting to Server");
 	unsigned char keyStart[17];
 	char b64Key[25];
 	memset(b64Key, 0, sizeof(b64Key));
 	_mode = wsMode::Connecting; // Server Connected / WS Upgrade request sent
 
-	for (int i = 0; i < 16; ++i)
-	{
-		keyStart[i] = 1 + os_random()%255;
+	for(int i = 0; i < 16; ++i) {
+		keyStart[i] = 1 + os_random() % 255;
 	}
 
-	base64_encode(16, (const unsigned char*) keyStart, 24, (char*) b64Key);
+	base64_encode(16, (const unsigned char*)keyStart, 24, (char*)b64Key);
 
 	_key.setString(b64Key, 24);
 
 	String protocol = "chat";
 	sendString("GET ");
-	if (_uri.Path != "")
-	{
+	if(_uri.Path != "") {
 		sendString(_uri.Path);
-	}
-	else
-	{
+	} else {
 		sendString("/");
 	}
 	sendString(" HTTP/1.1\r\n");
@@ -82,18 +77,14 @@ bool WebsocketClient::connect(String url, uint32_t sslOptions /* = 0 */)
 	sendString("Sec-WebSocket-Version: 13\r\n");
 	sendString("\r\n", false);
 	return true;
-
 }
 
 void WebsocketClient::onError(err_t err)
 {
-	if ((err == ERR_ABRT) || (err == ERR_RST))
-	{
-		debugf("TCP Connection Reseted or Aborted", err);
-	}
-	else
-	{
-		debugf("Error  %d Occured ", err);
+	if((err == ERR_ABRT) || (err == ERR_RST)) {
+		debug_e("TCP Connection Reseted or Aborted", err);
+	} else {
+		debug_e("Error  %d Occurred ", err);
 	}
 	TcpClient::onError(err);
 }
@@ -106,18 +97,16 @@ bool WebsocketClient::_verifyKey(char* buf, int size)
 	char base64HashedKey[20 * 4];
 	String keyToHash = _key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-	if(!serverHashedKey)
-	{
-		debugf("wscli cannot find key");
+	if(!serverHashedKey) {
+		debug_e("wscli cannot find key");
 		return false;
 	}
 
 	serverHashedKey += sizeof("sec-websocket-accept: ") - 1;
 	endKey = strstr(serverHashedKey, "\r\n");
 
-	if(!endKey || endKey - buf > size)
-	{
-		debugf("wscli cannot find key reason:%s", endKey ? "out of bounds":"NULL");
+	if(!endKey || endKey - buf > size) {
+		debug_e("wscli cannot find key reason:%s", endKey ? "out of bounds" : "NULL");
 		return false;
 	}
 
@@ -126,9 +115,8 @@ bool WebsocketClient::_verifyKey(char* buf, int size)
 	sha1(hashedKey, keyToHash.c_str(), keyToHash.length());
 	base64_encode(sizeof(hashedKey), hashedKey, sizeof(base64HashedKey), base64HashedKey);
 
-	if(strstr(serverHashedKey, base64HashedKey) != serverHashedKey)
-	{
-		debugf("wscli key mismatch: %s | %s", serverHashedKey, base64HashedKey);
+	if(strstr(serverHashedKey, base64HashedKey) != serverHashedKey) {
+		debug_e("wscli key mismatch: %s | %s", serverHashedKey, base64HashedKey);
 		return false;
 	}
 
@@ -139,44 +127,37 @@ void WebsocketClient::onFinished(TcpClientState finishState)
 {
 	_mode = wsMode::Disconnected;
 	uint8_t failed = (finishState == eTCS_Failed);
-	if (failed)
-	{
-		debugf("Tcp Client failure...");
-	}
-	else
-	{
-		debugf("Websocket Closed Normally.");
-
+	if(failed) {
+		debug_e("Tcp Client failure...");
+	} else {
+		debug_d("Websocket Closed Normally.");
 	}
 
-	if (wsDisconnect)
-	{
+	if(wsDisconnect) {
 		wsDisconnect(*this, !failed);
 	}
 	TcpClient::onFinished(finishState);
 }
 
-void WebsocketClient::sendPing()
+bool WebsocketClient::sendPing(const String& payload /* = "" */)
 {
-	uint8_t buf[2] = { 0x89, 0x00 };
-	debugf("Sending PING");
-	send((char*) buf, 2, false);
+	debug_d("Sending PING");
+	return sendControlFrame(WSFrameType::ping, payload);
 }
 
-void WebsocketClient::sendPong()
+bool WebsocketClient::sendPong(const String& payload /* = "" */)
 {
-	uint8_t buf[2] = { 0x8A, 0x00 };
-	debugf("Sending PONG");
-	send((char*) buf, 2, false);
+	debug_d("Sending PONG");
+	return sendControlFrame(WSFrameType::pong, payload);
 }
 
 void WebsocketClient::disconnect()
 {
-	debugf("Terminating Websocket connection.");
+	debug_d("Terminating Websocket connection.");
 	_mode = wsMode::Disconnected;
 	// Should send 0x87, 0x00 to server to tell it that I'm quitting here.
-	uint8_t buf[2] = { 0x87, 0x00 };
-	send((char*) buf, 2, true);
+	uint8_t buf[2] = {0x87, 0x00};
+	send((char*)buf, 2, true);
 }
 
 void WebsocketClient::_sendFrame(WSFrameType frameType, uint8_t* msg, uint16_t length)
@@ -184,14 +165,11 @@ void WebsocketClient::_sendFrame(WSFrameType frameType, uint8_t* msg, uint16_t l
 	WebsocketFrameClass wsFrame;
 	uint8_t result = wsFrame.encodeFrame(frameType, msg, length, true, true, true);
 
-	if (result && wsFrame._header == nullptr)
-	{
-		send((char*) &wsFrame._payload[0], wsFrame._payloadLength, false);
-	}
-	else if (result)
-	{
-		send((char*) &wsFrame._header[0], wsFrame._headerLength, false);
-		send((char*) &wsFrame._payload[0], wsFrame._payloadLength, false);
+	if(result && wsFrame._header == nullptr) {
+		send((char*)&wsFrame._payload[0], wsFrame._payloadLength, false);
+	} else if(result) {
+		send((char*)&wsFrame._header[0], wsFrame._headerLength, false);
+		send((char*)&wsFrame._payload[0], wsFrame._payloadLength, false);
 	}
 }
 void WebsocketClient::sendBinary(uint8_t* msg, uint16_t length)
@@ -201,18 +179,54 @@ void WebsocketClient::sendBinary(uint8_t* msg, uint16_t length)
 
 void WebsocketClient::sendMessage(char* msg, uint16_t length)
 {
-	_sendFrame(WSFrameType::text, (uint8_t*) msg, length);
+	_sendFrame(WSFrameType::text, (uint8_t*)msg, length);
 }
 
-void WebsocketClient::sendMessage(String str)
+void WebsocketClient::sendMessage(const String& str)
 {
-	_sendFrame(WSFrameType::text, (uint8_t*) str.c_str(), str.length() + 1);
+	_sendFrame(WSFrameType::text, (uint8_t*)str.c_str(), str.length() + 1);
+}
+
+bool WebsocketClient::sendControlFrame(WSFrameType frameType, const String& payload /* = "" */)
+{
+	if(payload.length() > 127) {
+		debug_w("Maximum length of payload is 127 bytes");
+		return false;
+	}
+
+	uint32_t mask = 0;
+	int size = 2 + payload.length() + 4 * mask;
+	uint8_t* buf = new uint8_t[size];
+
+	// if we have payload, generate random mask for it
+	if(payload.length()) {
+		mask = ESP8266_DREG(0x20E44); // See: http://esp8266-re.foogod.com/wiki/Random_Number_Generator
+	}
+
+	int pos = 0;
+	buf[pos++] = (uint8_t)frameType;
+	buf[pos++] = 0x00;
+	buf[pos] |= bit(7);
+
+	if(payload.length()) {
+		buf[pos] += payload.length();
+	}
+
+	buf[++pos] = (mask >> 24) & 0xFF;
+	buf[++pos] = (mask >> 16) & 0xFF;
+	buf[++pos] = (mask >> 8) & 0xFF;
+	buf[++pos] = (mask >> 0) & 0xFF;
+
+	WebsocketFrameClass::mask(payload, mask, (char*)(buf + pos + 1));
+
+	send((char*)buf, size, false);
+
+	return true;
 }
 
 err_t WebsocketClient::onReceive(pbuf* buf)
 {
-	if (buf == NULL)
-	{
+	if(buf == NULL) {
 		// Disconnected, close it
 		return TcpClient::onReceive(buf);
 	}
@@ -222,92 +236,74 @@ err_t WebsocketClient::onReceive(pbuf* buf)
 
 	pbuf_copy_partial(buf, data, size, 0);
 
-	switch (_mode)
-	{
+	switch(_mode) {
 	case wsMode::Connecting:
-		if (_verifyKey((char*)data, size) == true)
-		{
+		if(_verifyKey((char*)data, size) == true) {
 			_mode = wsMode::Connected;
-			//   debugf("Key Verified. Websocket Handshake completed");
+			//   debug_d("Key Verified. Websocket Handshake completed");
 			sendPing();
-		}
-		else
-		{
+		} else {
 			_mode = wsMode::Disconnected; // Handshake was not proper.
 		}
 
-		if (wsConnect)
-		{
+		if(wsConnect) {
 			wsConnect(*this, _mode);
 		}
 		break;
 
 	case wsMode::Connected:
 		WebsocketFrameClass wsFrame;
-		do
-		{
-			if (wsFrame.decodeFrame(data, size))
-			{
-				switch (wsFrame._frameType)
-				{
-				case WSFrameType::text:
-				{
-//						debugf("Got text frame");
+		do {
+			if(wsFrame.decodeFrame(data, size)) {
+				switch(wsFrame._frameType) {
+				case WSFrameType::text: {
+					//						debug_d("Got text frame");
 					String msg;
 					msg.setString((char*)wsFrame._payload, wsFrame._payloadLength);
-					if (wsMessage)
-					{
+					if(wsMessage) {
 						wsMessage(*this, msg.c_str());
 					}
 					break;
 				}
-				case WSFrameType::binary:
-				{
-//						debugf("Got binary frame");
-					if (wsBinary)
-					{
+				case WSFrameType::binary: {
+					//						debug_d("Got binary frame");
+					if(wsBinary) {
 						wsBinary(*this, wsFrame._payload, wsFrame._payloadLength);
 					}
 					break;
 				}
-				case WSFrameType::close:
-				{
-					debugf("Got Disconnect request from server.\n");
+				case WSFrameType::close: {
+					debug_d("Got Disconnect request from server.\n");
 					//RFC requires we return a close op code before closing the connection
 					disconnect();
 					break;
 				}
-				case WSFrameType::ping:
-				{
-					debugf("Got ping ...");
-					sendPong(); //Need to send Pong in response to Ping
+				case WSFrameType::ping: {
+					debug_d("Got ping ...");
+					sendPong(String((char*)wsFrame._payload,
+									wsFrame._payloadLength)); //Need to send Pong in response to Ping
 					break;
 				}
-				case WSFrameType::pong:
-				{
-					debugf("Got pong ...");
+				case WSFrameType::pong: {
+					debug_d("Got pong ...");
 					//A pong can contain app data, but shouldnt if we didnt send any...
 					break;
 				}
-				case WSFrameType::error:
-				{
-					debugf("ERROR parsing frame!");
+				case WSFrameType::error: {
+					debug_e("ERROR parsing frame!");
 					break;
 				}
-				case WSFrameType::incomplete:
-				{
-					debugf("INCOMPLETE websocket frame!");
+				case WSFrameType::incomplete: {
+					debug_w("INCOMPLETE websocket frame!");
 					break;
 				}
-				default:
-				{
-					debugf("Unknown frameType: %d", wsFrame._frameType);
+				default: {
+					debug_w("Unknown frameType: %d", wsFrame._frameType);
 					break;
 				}
 				}
 			}
-		}
-		while (wsFrame._nextReadOffset > 0);
+		} while(wsFrame._nextReadOffset > 0);
 
 		break;
 	}

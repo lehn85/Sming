@@ -18,14 +18,16 @@ WebSocketConnection::WebSocketConnection(HttpServerConnection* conn)
 
 WebSocketConnection::~WebSocketConnection()
 {
-	websocketList.removeElement(*this);
+	state = eWSCS_Closed;
+	stream = NULL;
+	close();
 }
 
 bool WebSocketConnection::initialize(HttpRequest& request, HttpResponse& response)
 {
 	String version = request.getHeader("Sec-WebSocket-Version");
 	version.trim();
-	if (version.toInt() != 13) // 1.3
+	if(version.toInt() != 13) // 1.3
 		return false;
 
 	state = eWSCS_Open;
@@ -41,9 +43,11 @@ bool WebSocketConnection::initialize(HttpRequest& request, HttpResponse& respons
 	response.setHeader("Upgrade", "websocket");
 	response.setHeader("Sec-WebSocket-Accept", secure);
 
-	connection->userData = (void *)this;
+	delete stream;
+	stream = new EndlessMemoryStream();
+	response.sendDataStream(stream);
 
-	websocketList.addElement(*this);
+	connection->userData = (void*)this;
 
 	memset(&parserSettings, 0, sizeof(parserSettings));
 	parserSettings.on_data_begin = staticOnDataBegin;
@@ -56,6 +60,10 @@ bool WebSocketConnection::initialize(HttpRequest& request, HttpResponse& respons
 	ws_parser_init(&parser, &parserSettings);
 	parser.user_data = (void*)this;
 
+	if(!websocketList.contains(this)) {
+		websocketList.addElement(this);
+	}
+
 	if(wsConnect) {
 		wsConnect(*this);
 	}
@@ -63,43 +71,42 @@ bool WebSocketConnection::initialize(HttpRequest& request, HttpResponse& respons
 	return true;
 }
 
-int WebSocketConnection::processFrame(HttpServerConnection& connection, HttpRequest& request, char *at, int size)
+int WebSocketConnection::processFrame(HttpServerConnection& connection, HttpRequest& request, char* at, int size)
 {
-	int rc = ws_parser_execute(&parser, (char *)at, size);
-	if (rc != WS_OK) {
-		debugf("WebSocketResource error: %d %s\n", rc, ws_parser_error(rc));
+	int rc = ws_parser_execute(&parser, (char*)at, size);
+	if(rc != WS_OK) {
+		debug_e("WebSocketResource error: %d %s\n", rc, ws_parser_error(rc));
 		return -1;
 	}
 
 	return 0;
 }
 
-int WebSocketConnection::staticOnDataBegin(void* userData, ws_frame_type_t type) {
-	WebSocketConnection *connection = (WebSocketConnection *)userData;
-	if (connection == NULL) {
+int WebSocketConnection::staticOnDataBegin(void* userData, ws_frame_type_t type)
+{
+	WebSocketConnection* connection = (WebSocketConnection*)userData;
+	if(connection == NULL) {
 		return -1;
 	}
 
 	connection->frameType = type;
 
-	debugf("data_begin: %s\n",
-			type == WS_FRAME_TEXT ? "text" :
-			type == WS_FRAME_BINARY ? "binary" :
-			"?");
+	debug_d("data_begin: %s\n", type == WS_FRAME_TEXT ? "text" : type == WS_FRAME_BINARY ? "binary" : "?");
 
 	return WS_OK;
 }
 
-int WebSocketConnection::staticOnDataPayload(void* userData, const char *at, size_t length) {
-	WebSocketConnection *connection = (WebSocketConnection *)userData;
-	if (connection == NULL) {
+int WebSocketConnection::staticOnDataPayload(void* userData, const char* at, size_t length)
+{
+	WebSocketConnection* connection = (WebSocketConnection*)userData;
+	if(connection == NULL) {
 		return -1;
 	}
 
-	if (connection->frameType == WS_FRAME_TEXT && connection->wsMessage) {
+	if(connection->frameType == WS_FRAME_TEXT && connection->wsMessage) {
 		connection->wsMessage(*connection, String(at, length));
-	} else if (connection->frameType == WS_FRAME_BINARY && connection->wsBinary) {
-		connection->wsBinary(*connection, (uint8_t *) at, length);
+	} else if(connection->frameType == WS_FRAME_BINARY && connection->wsBinary) {
+		connection->wsBinary(*connection, (uint8_t*)at, length);
 	}
 
 	return WS_OK;
@@ -112,59 +119,67 @@ int WebSocketConnection::staticOnDataEnd(void* userData)
 
 int WebSocketConnection::staticOnControlBegin(void* userData, ws_frame_type_t type)
 {
-	WebSocketConnection *connection = (WebSocketConnection *)userData;
-	if (connection == NULL) {
+	WebSocketConnection* connection = (WebSocketConnection*)userData;
+	if(connection == NULL) {
 		return -1;
 	}
 
-	connection->controlFrameType = type;
+	connection->controlFrame.type = type;
+	connection->controlFrame.payload = NULL;
+	connection->controlFrame.payloadLegth = 0;
 
-	if (type == WS_FRAME_CLOSE) {
-		if(connection->wsDisconnect) {
-			connection->wsDisconnect(*connection);
-		}
+	if(type == WS_FRAME_CLOSE) {
 		connection->close();
 	}
 
 	return WS_OK;
 }
 
-int WebSocketConnection::staticOnControlPayload(void* userData, const char *data, size_t length)
+int WebSocketConnection::staticOnControlPayload(void* userData, const char* data, size_t length)
 {
+	WebSocketConnection* connection = (WebSocketConnection*)userData;
+	if(connection == NULL) {
+		return -1;
+	}
+
+	connection->controlFrame.payload = (char*)data;
+	connection->controlFrame.payloadLegth = length;
+
 	return WS_OK;
 }
 
 int WebSocketConnection::staticOnControlEnd(void* userData)
 {
-	WebSocketConnection *connection = (WebSocketConnection *)userData;
-	if (connection == NULL) {
+	WebSocketConnection* connection = (WebSocketConnection*)userData;
+	if(connection == NULL) {
 		return -1;
 	}
 
-	if(connection->controlFrameType == WS_FRAME_PING) {
-		// TODO: add control frame payload processing...
-		connection->send((const char* )NULL, 0, WS_PONG_FRAME);
+	if(connection->controlFrame.type == WS_FRAME_PING) {
+		connection->send((const char*)connection->controlFrame.payload, connection->controlFrame.payloadLegth,
+						 WS_PONG_FRAME);
 	}
 
 	return WS_OK;
 }
 
-
 void WebSocketConnection::send(const char* message, int length, wsFrameType type /* = WS_TEXT_FRAME*/)
 {
+	if(stream == NULL) {
+		return;
+	}
+
 	uint8_t frameHeader[16] = {0};
 	size_t headSize = sizeof(frameHeader);
 	wsMakeFrame(nullptr, length, frameHeader, &headSize, type);
-	connection->send((const char* )frameHeader, (uint16_t )headSize);
-	if(length > 0) {
-		connection->send((const char* )message, (uint16_t )length);
-	}
+	stream->write((uint8_t*)frameHeader, (uint16_t)headSize);
+	stream->write((uint8_t*)message, (uint16_t)length);
 }
 
 void WebSocketConnection::broadcast(const char* message, int length, wsFrameType type /* = WS_TEXT_FRAME*/)
 {
-	for (int i = 0; i < websocketList.count(); i++) {
-		websocketList[i].send(message, length, type);
+	for(int i = 0; i < websocketList.count(); i++) {
+		websocketList[i]->send(message, length, type);
 	}
 }
 
@@ -178,7 +193,7 @@ void WebSocketConnection::sendBinary(const uint8_t* data, int size)
 	send((char*)data, size, WS_BINARY_FRAME);
 }
 
-bool  WebSocketConnection::operator==(const WebSocketConnection &rhs) const
+bool WebSocketConnection::operator==(const WebSocketConnection& rhs) const
 {
 	return (this == &rhs);
 }
@@ -190,11 +205,14 @@ WebSocketsList& WebSocketConnection::getActiveWebSockets()
 
 void WebSocketConnection::close()
 {
-	websocketList.removeElement((const WebSocketConnection)*this);
-	state = eWSCS_Closed;
-
-	if(wsDisconnect) {
-		wsDisconnect(*this);
+	websocketList.removeElement(this);
+	if(state != eWSCS_Closed) {
+		state = eWSCS_Closed;
+		send((const char*)NULL, 0, WS_CLOSING_FRAME);
+		stream = NULL;
+		if(wsDisconnect) {
+			wsDisconnect(*this);
+		}
 	}
 
 	connection->setTimeOut(1);
@@ -209,7 +227,6 @@ void* WebSocketConnection::getUserData()
 {
 	return userData;
 }
-
 
 void WebSocketConnection::setConnectionHandler(WebSocketDelegate handler)
 {

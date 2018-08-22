@@ -17,20 +17,14 @@
 #include "HttpResponse.h"
 #include "HttpRequest.h"
 #include "../TcpClient.h"
-#include "../../DataSourceStream.h"
+#include "Data/Stream/DataSourceStream.h"
+#include "Data/Stream/MultipartStream.h"
 #include "../../Services/DateTime/DateTime.h"
 
 typedef SimpleConcurrentQueue<HttpRequest*, HTTP_REQUEST_POOL_SIZE> RequestQueue;
 
-enum HttpClientMode
+class HttpConnection : protected TcpClient
 {
-	eHCM_String = 0,
-	eHCM_File, // << Deprecated! Use eHCM_Stream stream instead
-	eHCM_Stream,
-	eHCM_UserDefined // << Deprecated! If you supply onBody callback then the incoming body will be processed from the callback directly
-};
-
-class HttpConnection : protected TcpClient {
 	friend class HttpClient;
 
 public:
@@ -39,7 +33,7 @@ public:
 
 	bool connect(const String& host, int port, bool useSsl = false, uint32_t sslOptions = 0);
 
-	void send(HttpRequest* request);
+	bool send(HttpRequest* request);
 
 	bool isActive();
 
@@ -55,6 +49,9 @@ public:
 	 */
 	HttpResponse* getResponse();
 
+	using TcpConnection::getRemoteIp;
+	using TcpConnection::getRemotePort;
+
 	using TcpClient::close;
 
 #ifdef ENABLE_SSL
@@ -63,56 +60,87 @@ public:
 
 	// Backported for compatibility reasons
 	// @deprecated
-	__forceinline int getResponseCode() { return code; }
+	/**
+	 * @deprecated Use `getResponse().code` instead
+	 */
+	__forceinline int getResponseCode()
+	{
+		return response.code;
+	}
+
+	/**
+	 * @deprecated Use `getResponse().headers[headerName]` instead
+	 */
 	String getResponseHeader(String headerName, String defaultValue = "");
-	HttpHeaders &getResponseHeaders();
+
+	/**
+	* @deprecated Use `getResponse().headers` instead
+	*/
+	HttpHeaders& getResponseHeaders();
+
+	/**
+	* @deprecated Use `getResponse().headers["Last-Modified"]` instead
+	*/
 	DateTime getLastModifiedDate(); // Last-Modified header
+
+	/**
+	 * @deprecated Use `getResponse().headers["Date"]` instead
+	 */
 	DateTime getServerDate(); // Date header
 
+	/**
+	 * @deprecated Use `getResponse().stream` instead
+	 */
 	String getResponseString();
 	// @enddeprecated
-
-
 
 protected:
 	void reset();
 
-	virtual err_t onConnected(err_t err);
-	virtual err_t onReceive(pbuf *buf);
+	virtual err_t onReceive(pbuf* buf);
 	virtual err_t onProtocolUpgrade(http_parser* parser);
-
+	virtual void onReadyToSendData(TcpConnectionEvent sourceEvent);
 	virtual void onError(err_t err);
-
-	bool send(IDataSourceStream* inputStream, bool forceCloseAfterSent = false);
 
 	void cleanup();
 
 private:
-	static int IRAM_ATTR staticOnMessageBegin(http_parser* parser);
-	static int IRAM_ATTR staticOnStatus(http_parser *parser, const char *at, size_t length);
-	static int IRAM_ATTR staticOnHeadersComplete(http_parser* parser);
-	static int IRAM_ATTR staticOnHeaderField(http_parser *parser, const char *at, size_t length);
-	static int IRAM_ATTR staticOnHeaderValue(http_parser *parser, const char *at, size_t length);
-	static int IRAM_ATTR staticOnBody(http_parser *parser, const char *at, size_t length);
-	static int IRAM_ATTR staticOnChunkHeader(http_parser* parser);
-	static int IRAM_ATTR staticOnChunkComplete(http_parser* parser);
-	static int IRAM_ATTR staticOnMessageComplete(http_parser* parser);
+	static int staticOnMessageBegin(http_parser* parser);
+#ifndef COMPACT_MODE
+	static int staticOnStatus(http_parser* parser, const char* at, size_t length);
+#endif
+	static int staticOnHeadersComplete(http_parser* parser);
+	static int staticOnHeaderField(http_parser* parser, const char* at, size_t length);
+	static int staticOnHeaderValue(http_parser* parser, const char* at, size_t length);
+	static int staticOnBody(http_parser* parser, const char* at, size_t length);
+#ifndef COMPACT_MODE
+	static int staticOnChunkHeader(http_parser* parser);
+	static int staticOnChunkComplete(http_parser* parser);
+#endif
+	static int staticOnMessageComplete(http_parser* parser);
+
+	void sendRequestHeaders(HttpRequest* request);
+	bool sendRequestBody(HttpRequest* request);
 
 protected:
-	HttpClientMode mode;
-	String responseStringData;
-
 	RequestQueue* waitingQueue;
 	RequestQueue executionQueue;
-	http_parser *parser = NULL;
-	http_parser_settings parserSettings;
-	HttpHeaders responseHeaders;
+	http_parser parser;
+	static http_parser_settings parserSettings;
+	static bool parserSettingsInitialized;
 
-	int code = 0;
 	bool lastWasValue = true;
 	String lastData = "";
-	String currentField  = "";
-	HttpRequest* currentRequest = NULL;
+	String currentField = "";
+	HttpRequest* incomingRequest = NULL;
+	HttpRequest* outgoingRequest = NULL;
+	HttpResponse response;
+
+private:
+	HttpConnectionState state = eHCS_Ready;
+
+private:
+	HttpPartResult multipartProducer();
 };
 
 #endif /* _SMING_CORE_HTTP_CONNECTION_H_ */

@@ -19,28 +19,26 @@
 class String;
 
 /// File open flags
-enum FileOpenFlags
-{
-  eFO_ReadOnly = SPIFFS_RDONLY, ///< Read only file
-  eFO_WriteOnly = SPIFFS_WRONLY, ///< Write only file
-  eFO_ReadWrite = eFO_ReadOnly | eFO_WriteOnly, ///< Read and write file
-  eFO_CreateIfNotExist = SPIFFS_CREAT, ///< Create new file if file does not exist
-  eFO_Append = SPIFFS_APPEND, ///< Append to file
-  eFO_Truncate = SPIFFS_TRUNC, ///< Truncate file
-  eFO_CreateNewAlways = eFO_CreateIfNotExist | eFO_Truncate ///< Create new file even if file exists
+enum FileOpenFlags {
+	eFO_ReadOnly = SPIFFS_RDONLY,							  ///< Read only file
+	eFO_WriteOnly = SPIFFS_WRONLY,							  ///< Write only file
+	eFO_ReadWrite = eFO_ReadOnly | eFO_WriteOnly,			  ///< Read and write file
+	eFO_CreateIfNotExist = SPIFFS_CREAT,					  ///< Create new file if file does not exist
+	eFO_Append = SPIFFS_APPEND,								  ///< Append to file
+	eFO_Truncate = SPIFFS_TRUNC,							  ///< Truncate file
+	eFO_CreateNewAlways = eFO_CreateIfNotExist | eFO_Truncate ///< Create new file even if file exists
 };
 
 static FileOpenFlags operator|(FileOpenFlags lhs, FileOpenFlags rhs)
 {
-    return (FileOpenFlags) ((int)lhs| (int)rhs);
+	return (FileOpenFlags)((int)lhs | (int)rhs);
 }
 
 /// File seek flags
-typedef enum
-{
-	eSO_FileStart = SPIFFS_SEEK_SET, ///< Start of file
+typedef enum {
+	eSO_FileStart = SPIFFS_SEEK_SET,  ///< Start of file
 	eSO_CurrentPos = SPIFFS_SEEK_CUR, ///< Current position in file
-	eSO_FileEnd = SPIFFS_SEEK_END ///< End of file
+	eSO_FileEnd = SPIFFS_SEEK_END	 ///< End of file
 } SeekOriginFlags;
 
 /** @brief  Open file
@@ -48,7 +46,7 @@ typedef enum
  *  @param  flags Mode to open file
  *  @retval file File ID or negative error code
  */
-file_t fileOpen(const String name, FileOpenFlags flags);
+file_t fileOpen(const String& name, FileOpenFlags flags);
 
 /** @brief  Clode file
  *  @param  file ID of file to open
@@ -118,7 +116,7 @@ void fileClearLastError(file_t fd);
             populates the file with the content of a c-string buffer.
             Remember to terminate your c-string buffer with a null (0).
  */
-void fileSetContent(const String fileName, const char *content);
+void fileSetContent(const String& fileName, const char* content);
 
 /** @brief  Create or replace file with defined content
  *  @param  fileName Name of file to create or replace
@@ -126,19 +124,19 @@ void fileSetContent(const String fileName, const char *content);
  *  @note   This function creates a new file or replaces an existing file and
             populates the file with the content of a string.
  */
-void fileSetContent(const String fileName, const String& content);
+void fileSetContent(const String& fileName, const String& content);
 
 /** @brief  Get size of file
  *  @param  fileName Name of file
  *  @retval uint32_t Size of file in bytes
  */
-uint32_t fileGetSize(const String fileName);
+uint32_t fileGetSize(const String& fileName);
 
 /** @brief  Rename file
  *  @param  oldName Original name of file to rename
  *  @param  newName New name for file
  */
-void fileRename(const String oldName, const String newName);
+void fileRename(const String& oldName, const String& newName);
 
 /** @brief  Get list of files on file system
  *  @retval Vector<String> Vector of strings.
@@ -151,7 +149,7 @@ Vector<String> fileList();
  *  @retval String String variable in to which to read the file content
  *  @note   After calling this function the content of the file is placed in to a string
  */
-String fileGetContent(const String fileName);
+String fileGetContent(const String& fileName);
 
 /** @brief  Read content of a file
  *  @param  fileName Name of file to read from
@@ -162,7 +160,7 @@ String fileGetContent(const String fileName);
             Ensure there is sufficient space in the buffer for file content
             plus extra trailing null, i.e. at least bufSize + 1
  */
-int fileGetContent(const String fileName, char* buffer, int bufSize);
+int fileGetContent(const String& fileName, char* buffer, int bufSize);
 
 /** brief   Get file statistics
  *  @param  name File name
@@ -171,7 +169,7 @@ int fileGetContent(const String fileName, char* buffer, int bufSize);
  *  @note   Pass a pointer to an instantiated fileStats structure
  *  @todo   Document the return value of fileStats
  */
-int fileStats(const String name, spiffs_stat *stat);
+int fileStats(const String& name, spiffs_stat* stat);
 
 /** brief   Get file statistics
  *  @param  file File ID
@@ -180,12 +178,12 @@ int fileStats(const String name, spiffs_stat *stat);
  *  @note   Pass a pointer to an instantiated fileStats structure
  *  @todo   Document the return value of fileStats
  */
-int fileStats(file_t file, spiffs_stat *stat);
+int fileStats(file_t file, spiffs_stat* stat);
 
 /** @brief  Delete file
  *  @param  name Name of file to delete
  */
-void fileDelete(const String name);
+void fileDelete(const String& name);
 
 /** @brief  Delete file
  *  @param  file ID of file to delete
@@ -196,7 +194,7 @@ void fileDelete(file_t file);
  *  @param  name Name of file to check for
  *  @retval bool True if file exists
  */
-bool fileExist(const String name);
+bool fileExist(const String& name);
 
 /** @} */
 #endif /* _SMING_CORE_FILESYSTEM_H_ */

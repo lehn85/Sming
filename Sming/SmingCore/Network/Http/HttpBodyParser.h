@@ -16,8 +16,8 @@
 #include "HttpCommon.h"
 #include "HttpRequest.h"
 
-typedef Delegate<void(HttpRequest&, const char *at, int length)> HttpBodyParserDelegate;
-typedef HashMap <String, HttpBodyParserDelegate> BodyParsers;
+typedef Delegate<void(HttpRequest&, const char* at, int length)> HttpBodyParserDelegate;
+typedef HashMap<String, HttpBodyParserDelegate> BodyParsers;
 
 typedef struct {
 	char searchChar = '=';
@@ -36,11 +36,21 @@ extern "C" {
  * 				-1 - start of incoming data
  * 				-2 - end of incoming data
  */
-void formUrlParser(HttpRequest& request, const char *at, int length);
+void formUrlParser(HttpRequest& request, const char* at, int length);
+
+/**
+ * @brief Stores the complete body into memory.
+ *        The content later can be retrieved by calling request.getBody()
+ * @param HttpRequest&
+ * @param const *char
+ * @param int length Negative lengths are used to specify special cases
+ * 				-1 - start of incoming data
+ * 				-2 - end of incoming data
+ */
+void bodyToStringParser(HttpRequest& request, const char* at, int length);
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif /* _SMING_CORE_HTTP_BODY_PARSER_H_ */

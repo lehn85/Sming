@@ -8,83 +8,80 @@
 #include "FileSystem.h"
 #include "../Wiring/WString.h"
 
-file_t fileOpen(const String name, FileOpenFlags flags)
+file_t fileOpen(const String& name, FileOpenFlags flags)
 {
-  int res;
+	int res;
 
-  // Special fix to prevent known spifFS bug: manual delete file
-  if ((flags & eFO_CreateNewAlways) == eFO_CreateNewAlways)
-  {
-	  if (fileExist(name))
-		  fileDelete(name);
-	  flags = (FileOpenFlags)((int)flags & ~eFO_Truncate);
-  }
+	// Special fix to prevent known spifFS bug: manual delete file
+	if((flags & eFO_CreateNewAlways) == eFO_CreateNewAlways) {
+		if(fileExist(name))
+			fileDelete(name);
+		flags = (FileOpenFlags)((int)flags & ~eFO_Truncate);
+	}
 
-  res = SPIFFS_open(&_filesystemStorageHandle, name.c_str(), (spiffs_flags)flags, 0);
-  if (res < 0)
-	  debugf("open errno %d\n", SPIFFS_errno(&_filesystemStorageHandle));
+	res = SPIFFS_open(&_filesystemStorageHandle, name.c_str(), (spiffs_flags)flags, 0);
+	if(res < 0)
+		debugf("open errno %d\n", SPIFFS_errno(&_filesystemStorageHandle));
 
-  return res;
+	return res;
 }
 
 void fileClose(file_t file)
 {
-  SPIFFS_close(&_filesystemStorageHandle, file);
+	SPIFFS_close(&_filesystemStorageHandle, file);
 }
 
 size_t fileWrite(file_t file, const void* data, size_t size)
 {
-  int res = SPIFFS_write(&_filesystemStorageHandle, file, (void *)data, size);
-  if (res < 0)
-  {
-    debugf("write errno %d\n", SPIFFS_errno(&_filesystemStorageHandle));
-    return res;
-  }
-  return res;
+	int res = SPIFFS_write(&_filesystemStorageHandle, file, (void*)data, size);
+	if(res < 0) {
+		debugf("write errno %d\n", SPIFFS_errno(&_filesystemStorageHandle));
+		return res;
+	}
+	return res;
 }
 
 size_t fileRead(file_t file, void* data, size_t size)
 {
-  int res = SPIFFS_read(&_filesystemStorageHandle, file, data, size);
-  if (res < 0)
-  {
-    debugf("read errno %d\n", SPIFFS_errno(&_filesystemStorageHandle));
-    return res;
-  }
-  return res;
+	int res = SPIFFS_read(&_filesystemStorageHandle, file, data, size);
+	if(res < 0) {
+		debugf("read errno %d\n", SPIFFS_errno(&_filesystemStorageHandle));
+		return res;
+	}
+	return res;
 }
 
 int fileSeek(file_t file, int offset, SeekOriginFlags origin)
 {
-  return SPIFFS_lseek(&_filesystemStorageHandle, file, offset, origin);
+	return SPIFFS_lseek(&_filesystemStorageHandle, file, offset, origin);
 }
 
 bool fileIsEOF(file_t file)
 {
-  return SPIFFS_eof(&_filesystemStorageHandle, file);
+	return SPIFFS_eof(&_filesystemStorageHandle, file);
 }
 
 int32_t fileTell(file_t file)
 {
-  return SPIFFS_tell(&_filesystemStorageHandle, file);
+	return SPIFFS_tell(&_filesystemStorageHandle, file);
 }
 
 int fileFlush(file_t file)
 {
-  return SPIFFS_fflush(&_filesystemStorageHandle, file);
+	return SPIFFS_fflush(&_filesystemStorageHandle, file);
 }
 
-int fileStats(const String name, spiffs_stat *stat)
+int fileStats(const String& name, spiffs_stat* stat)
 {
 	return SPIFFS_stat(&_filesystemStorageHandle, name.c_str(), stat);
 }
 
-int fileStats(file_t file, spiffs_stat *stat)
+int fileStats(file_t file, spiffs_stat* stat)
 {
 	return SPIFFS_fstat(&_filesystemStorageHandle, file, stat);
 }
 
-void fileDelete(const String name)
+void fileDelete(const String& name)
 {
 	SPIFFS_remove(&_filesystemStorageHandle, name.c_str());
 }
@@ -94,37 +91,37 @@ void fileDelete(file_t file)
 	SPIFFS_fremove(&_filesystemStorageHandle, file);
 }
 
-bool fileExist(const String name)
+bool fileExist(const String& name)
 {
-  spiffs_stat stat = {0};
-  if (fileStats(name.c_str(), &stat) < 0) return false;
-  return stat.name[0] != '\0';
+	spiffs_stat stat = {0};
+	if(fileStats(name.c_str(), &stat) < 0)
+		return false;
+	return stat.name[0] != '\0';
 }
-
 
 int fileLastError(file_t fd)
 {
-  return SPIFFS_errno(&_filesystemStorageHandle);
+	return SPIFFS_errno(&_filesystemStorageHandle);
 }
 
 void fileClearLastError(file_t fd)
 {
-  SPIFFS_clearerr(&_filesystemStorageHandle);
+	SPIFFS_clearerr(&_filesystemStorageHandle);
 }
 
-void fileSetContent(const String fileName, const String& content)
+void fileSetContent(const String& fileName, const String& content)
 {
 	fileSetContent(fileName, content.c_str());
 }
 
-void fileSetContent(const String fileName, const char *content)
+void fileSetContent(const String& fileName, const char* content)
 {
 	file_t file = fileOpen(fileName.c_str(), eFO_CreateNewAlways | eFO_WriteOnly);
 	fileWrite(file, content, strlen(content));
 	fileClose(file);
 }
 
-uint32_t fileGetSize(const String fileName)
+uint32_t fileGetSize(const String& fileName)
 {
 	file_t file = fileOpen(fileName.c_str(), eFO_ReadOnly);
 	// Get size
@@ -134,7 +131,7 @@ uint32_t fileGetSize(const String fileName)
 	return size;
 }
 
-void fileRename(const String oldName, const String newName)
+void fileRename(const String& oldName, const String& newName)
 {
 	SPIFFS_rename(&_filesystemStorageHandle, oldName.c_str(), newName.c_str());
 }
@@ -146,23 +143,22 @@ Vector<String> fileList()
 	spiffs_dirent info;
 
 	SPIFFS_opendir(&_filesystemStorageHandle, "/", &d);
-	while (true)
-	{
-		if (!SPIFFS_readdir(&d, &info)) break;
+	while(true) {
+		if(!SPIFFS_readdir(&d, &info))
+			break;
 		result.add(String((char*)info.name));
 	}
 	SPIFFS_closedir(&d);
 	return result;
 }
 
-String fileGetContent(const String fileName)
+String fileGetContent(const String& fileName)
 {
 	file_t file = fileOpen(fileName.c_str(), eFO_ReadOnly);
 	// Get size
 	fileSeek(file, 0, eSO_FileEnd);
 	int size = fileTell(file);
-	if (size <= 0)
-	{
+	if(size <= 0) {
 		fileClose(file);
 		return "";
 	}
@@ -176,17 +172,17 @@ String fileGetContent(const String fileName)
 	return res;
 }
 
-int fileGetContent(const String fileName, char* buffer, int bufSize)
+int fileGetContent(const String& fileName, char* buffer, int bufSize)
 {
-	if (buffer == NULL || bufSize == 0) return 0;
+	if(buffer == NULL || bufSize == 0)
+		return 0;
 	*buffer = 0;
 
 	file_t file = fileOpen(fileName.c_str(), eFO_ReadOnly);
 	// Get size
 	fileSeek(file, 0, eSO_FileEnd);
 	int size = fileTell(file);
-	if (size <= 0 || bufSize <= size)
-	{
+	if(size <= 0 || bufSize <= size) {
 		fileClose(file);
 		return 0;
 	}

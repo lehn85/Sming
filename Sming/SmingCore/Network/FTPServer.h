@@ -5,6 +5,12 @@
  * All files of the Sming Core are provided under the LGPL v3 license.
  ****/
 
+/** @defgroup   ftpserver FTP server
+ *  @brief      Provides FTP server
+ *  @ingroup    tcpserver
+ *  @{
+ */
+
 #ifndef _SMING_CORE_FTPSERVER_H_
 #define _SMING_CORE_FTPSERVER_H_
 
@@ -15,22 +21,24 @@
 
 class FTPServerConnection;
 
-class FTPServer: public TcpServer
+class FTPServer : public TcpServer
 {
 	friend class FTPServerConnection;
+
 public:
 	FTPServer();
 	virtual ~FTPServer();
 
 	void addUser(String login, String pass);
-	bool checkUser(String login, String pass);
+	bool checkUser(String login, const String& pass);
 
 protected:
-	virtual TcpConnection* createClient(tcp_pcb *clientTcp);
+	virtual TcpConnection* createClient(tcp_pcb* clientTcp);
 	virtual bool onCommand(String cmd, String data, FTPServerConnection& connection);
 
 private:
 	HashMap<String, String> users;
 };
 
+/** @} */
 #endif /* _SMING_CORE_FTPServer_H_ */

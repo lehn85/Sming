@@ -5,6 +5,12 @@
  *      Author: Herman
  */
 
+/** @defgroup   telnetserver Telnet server
+ *  @brief      Provides Telnet server
+ *  @ingroup    tcpserver
+ *  @{
+ */
+
 #ifndef APP_TELNETSERVER_H_
 #define APP_TELNETSERVER_H_
 
@@ -18,28 +24,29 @@
 
 #include <stdio.h>
 
-#define TELNETSERVER_MAX_COMMANDSIZE  64
+#define TELNETSERVER_MAX_COMMANDSIZE 64
 
-typedef Delegate<void(TcpClient* client, char *data, int size)> TelnetServerCommandDelegate;
+typedef Delegate<void(TcpClient* client, char* data, int size)> TelnetServerCommandDelegate;
 
 class TelnetServer : public TcpServer
 {
 public:
 	TelnetServer();
 	virtual ~TelnetServer();
-//	void setCommandDelegate(TelnetServerCommandDelegate reqDelegate);
+	//	void setCommandDelegate(TelnetServerCommandDelegate reqDelegate);
 	void enableDebug(bool reqStatus);
 	void enableCommand(bool reqStatus);
 
 private:
-	void onClient(TcpClient *client);
-	bool onClientReceive (TcpClient& client, char *data, int size);
+	void onClient(TcpClient* client);
+	bool onClientReceive(TcpClient& client, char* data, int size);
 	void onClientComplete(TcpClient& client, bool succesfull);
 	void wrchar(char c);
-	TcpClient *curClient = nullptr;
+	TcpClient* curClient = nullptr;
 	CommandExecutor* commandExecutor = nullptr;
 	bool telnetDebug = true;
 	bool telnetCommand = true;
 };
 
+/** @} */
 #endif /* APP_TELNETSERVER_H_ */

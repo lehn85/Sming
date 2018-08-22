@@ -18,12 +18,12 @@
 #include "../../Wiring/WString.h"
 #include "../../Wiring/WHashMap.h"
 #include "../../Delegate.h"
-#include "../../Wiring/FILO.h"
 #include "../WebConstants.h"
 #include "../URL.h"
+#include "../../Data/Structures.h"
 
 #ifndef HTTP_MAX_HEADER_SIZE
-#define HTTP_MAX_HEADER_SIZE  (8*1024)
+#define HTTP_MAX_HEADER_SIZE (8 * 1024)
 #endif
 
 /* Number of maximum tcp connections to be kept in the pool */
@@ -33,36 +33,15 @@
 
 #include "../http-parser/http_parser.h"
 
-/**
- * WARNING: For the moment the name "SimpleConcurrentQueue" is very misleading.
- */
-template<typename T, int rawSize>
-class SimpleConcurrentQueue: public FIFO<T, rawSize> {
-public:
-	virtual const T& operator[](unsigned int) const { }
-	virtual T& operator[](unsigned int) { }
-
-	T peek() const
-	{
-	  if(!FIFO<T, rawSize>::numberOfElements) {
-		  return NULL;
-	  }
-
-	  return FIFO<T, rawSize>::peek();
-	}
-
-	T dequeue()
-	{
-	  if(!FIFO<T, rawSize>::numberOfElements) {
-		return NULL;
-	  }
-
-	  return FIFO<T, rawSize>::dequeue();
-	}
-};
-
-typedef HashMap<String, String> HttpParams;
-typedef HashMap<String, String> HttpHeaders;
 typedef enum http_method HttpMethod;
+
+enum HttpConnectionState {
+	eHCS_Ready = 0,
+	eHCS_StartSending,
+	eHCS_SendingHeaders,
+	eHCS_StartBody,
+	eHCS_SendingBody,
+	eHCS_Sent
+};
 
 #endif /* _SMING_CORE_HTTP_COMMON_H_ */

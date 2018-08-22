@@ -10,7 +10,7 @@
 #ifndef SMINGCORE_NETWORK_RBOOTHTTPUPDATE_H_
 #define SMINGCORE_NETWORK_RBOOTHTTPUPDATE_H_
 
-#include "../OutputStream.h"
+#include "Data/Stream/DataSourceStream.h"
 #include "HttpClient.h"
 #include <rboot-api.h>
 
@@ -27,11 +27,37 @@ struct rBootHttpUpdateItem {
 	int size;
 };
 
-class rBootItemOutputStream: public IOutputStream {
+class rBootItemOutputStream : public ReadWriteStream
+{
 public:
 	void setItem(rBootHttpUpdateItem* item);
 	virtual bool init();
 	virtual size_t write(const uint8_t* data, size_t size);
+	virtual size_t write(uint8_t charToWrite)
+	{
+		return write(&charToWrite, 1);
+	}
+
+	virtual StreamType getStreamType()
+	{
+		return eSST_File;
+	}
+
+	virtual uint16_t readMemoryBlock(char* data, int bufSize)
+	{
+		return 0;
+	}
+
+	virtual bool seek(int len)
+	{
+		return false;
+	}
+
+	virtual bool isFinished()
+	{
+		return true;
+	}
+
 	virtual bool close();
 	virtual ~rBootItemOutputStream();
 
@@ -41,8 +67,8 @@ protected:
 	rboot_write_status rBootWriteStatus;
 };
 
-class rBootHttpUpdate: protected HttpClient {
-
+class rBootHttpUpdate : protected HttpClient
+{
 public:
 	rBootHttpUpdate();
 	virtual ~rBootHttpUpdate();
@@ -60,7 +86,7 @@ public:
 	 *
 	 * @param HttpRequest *
 	 */
-	void setBaseRequest(HttpRequest *request);
+	void setBaseRequest(HttpRequest* request);
 
 	// Allow reading items
 	rBootHttpUpdateItem getItem(unsigned int index);
@@ -72,7 +98,6 @@ protected:
 	virtual rBootItemOutputStream* getStream();
 	virtual int itemComplete(HttpConnection& client, bool success);
 	virtual int updateComplete(HttpConnection& client, bool success);
-
 
 protected:
 	Vector<rBootHttpUpdateItem> items;

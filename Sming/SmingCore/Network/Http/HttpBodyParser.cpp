@@ -13,7 +13,7 @@
 #include "HttpBodyParser.h"
 #include "../WebHelpers/escape.h"
 
-void formUrlParser(HttpRequest& request, const char *at, int length)
+void formUrlParser(HttpRequest& request, const char* at, int length)
 {
 	FormUrlParserState* state = (FormUrlParserState*)request.args;
 
@@ -22,13 +22,13 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 			delete state;
 		}
 		state = new FormUrlParserState;
-		request.args = (void *)state;
+		request.args = (void*)state;
 		return;
 	}
 
 	if(length == -2) {
 		int maxLength = 0;
-		for(int i=0; i<request.postParams.count(); i++) {
+		for(int i = 0; i < request.postParams.count(); i++) {
 			int kLength = request.postParams.keyAt(i).length();
 			int vLength = request.postParams.valueAt(i).length();
 			if(maxLength < vLength || maxLength < kLength) {
@@ -37,18 +37,28 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 		}
 
 		char* buffer = new char[maxLength + 1];
-		for(int i=0, max = request.postParams.count(); i< max; i++) {
+		for(int i = 0, max = request.postParams.count(); i < max; i++) {
 			String key = request.postParams.keyAt(i);
 			String value = request.postParams.valueAt(i);
 
-			uri_unescape(buffer, maxLength, key.c_str(), key.length());
+			uri_unescape(buffer, maxLength + 1, key.c_str(), key.length());
 			String newKey = buffer;
 
 			if(newKey != key) {
 				request.postParams.remove(key);
+				/* we know that postParams is HashMap and
+				 * remove() shifts keys and values by one down, so
+				 * 1) don't change i-index - let it point to the next shifted item
+				 * 2) then as newKey will be added to the end of the Map, decrease max to
+				 * avoid processing the newKey-item added to the end 
+				 * or the invalid item in the place of the one shifted from the end 
+				 * (if it occurs that the 'newKey' = other existing key)
+				 */
+				i--;
+				max--;
 			}
 
-			uri_unescape(buffer, maxLength, value.c_str(), value.length());
+			uri_unescape(buffer, maxLength + 1, value.c_str(), value.length());
 			request.postParams[newKey] = buffer;
 		}
 		delete[] buffer;
@@ -62,7 +72,7 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 	}
 
 	if(state == NULL) {
-		debugf("Invalid request argument");
+		debug_e("Invalid request argument");
 		return;
 	}
 
@@ -73,8 +83,7 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 		if(pos == -1) {
 			if(state->searchChar == '=') {
 				state->postName += data;
-			}
-			else {
+			} else {
 				request.postParams[state->postName] += data;
 			}
 
@@ -85,8 +94,7 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 		if(state->searchChar == '=') {
 			state->postName += buf;
 			state->searchChar = '&';
-		}
-		else {
+		} else {
 			request.postParams[state->postName] += buf;
 			state->searchChar = '=';
 			state->postName = "";
@@ -94,4 +102,25 @@ void formUrlParser(HttpRequest& request, const char *at, int length)
 
 		data = data.substring(pos + 1);
 	}
+}
+
+void bodyToStringParser(HttpRequest& request, const char* at, int length)
+{
+	String* data = static_cast<String*>(request.args);
+
+	if(length == -1) {
+		delete data;
+		data = new String();
+		request.args = (void*)data;
+		return;
+	}
+
+	if(length == -2) {
+		request.setBody(*data);
+		delete data;
+		request.args = NULL;
+		return;
+	}
+
+	*data += String(at, length);
 }

@@ -7,10 +7,12 @@ volatile boolean awakenByInterrupt = false;
 byte mcpPinA = 0;
 byte interruptPin = 15;
 
-void interruptCallback() {
+void interruptCallback()
+{
 	awakenByInterrupt = true;
 	Serial.println("Interrupt Called");
-	while (!(mcp.digitalRead(mcpPinA)));
+	while(!(mcp.digitalRead(mcpPinA)))
+		;
 }
 
 void init()
@@ -18,7 +20,7 @@ void init()
 	Serial.begin(115200);
 
 	// You can select ESP I2C pins here:
-	//Wire.pins(4, 5); // SCL, SDA
+	//Wire.pins(5, 4); // SDA, SCL
 
 	mcp.begin(0); // 0 - for default mcp address, possible values: 0..7
 
