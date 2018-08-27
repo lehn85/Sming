@@ -173,6 +173,7 @@ SPIFF_FILES ?= files
 
 BUILD_BASE	= out/build
 FW_BASE		= out/firmware
+PROJECT_LD_PATH = out
 
 # The line below calculates the next available sector after the IMAGE_SDK ROM.
 # The math is the following: next_available_sector_start = (( address + size ) + one_sector_size) & 0xFFFFF000
@@ -213,7 +214,7 @@ else ifeq ($(ENABLE_CUSTOM_LWIP), 2)
 endif
 
 EXTRA_INCDIR += $(SMING_HOME)/include $(SMING_HOME)/ $(LWIP_INCDIR) $(SMING_HOME)/system/include \
-				$(SMING_HOME)/Wiring $(SMING_HOME)/Libraries \
+				$(SMING_HOME)/Wiring $(SMING_HOME)/Libraries $(SMING_HOME)/system/esp-lwip \
 				$(SMING_HOME)/Libraries/Adafruit_GFX $(SMING_HOME)/Libraries/Adafruit_Sensor \
 				$(SMING_HOME)/SmingCore $(SMING_HOME)/Services/SpifFS $(SDK_BASE)/../include \
 				$(THIRD_PARTY_DIR)/rboot $(THIRD_PARTY_DIR)/rboot/appcode $(THIRD_PARTY_DIR)/spiffs/src
@@ -436,6 +437,8 @@ all: $(USER_LIBDIR)/lib$(LIBSMING).a checkdirs $(TARGET_OUT) $(SPIFF_BIN_OUT) $(
 spiff_update: spiff_clean $(SPIFF_BIN_OUT)
 
 $(PROJECT_LD_PATH)/$(LD_SCRIPT):
+#	$(vecho) "LD path"
+#	$(vecho) $(PROJECT_LD_PATH)
 	$(Q) mkdir -p $(PROJECT_LD_PATH)
 	$(Q) cp $(LD_PATH)/$(LD_SCRIPT) $@ 
 	
