@@ -222,7 +222,7 @@ endif
 
 # => Open Source LWIP
 LIBLWIP = lwip
-ENABLE_CUSTOM_LWIP ?= 1
+ENABLE_CUSTOM_LWIP ?= 0
 ENABLE_ESPCONN ?= 0
 ifeq ($(ENABLE_CUSTOM_LWIP), 0) 
 	EXTRA_INCDIR += system/esp-lwip
