@@ -52,7 +52,7 @@ RBOOT_E2_USER_ARGS ?= -quiet -bin -boot2
 COM_SPEED ?= 115200
 
 # Default COM port speed (used for flashing)
-COM_SPEED_ESPTOOL ?= $(COM_SPEED)
+COM_SPEED_ESPTOOL ?= 921600
 
 # Default COM port speed (used in code)
 COM_SPEED_SERIAL  ?= $(COM_SPEED)
@@ -218,7 +218,7 @@ MODULES      += $(THIRD_PARTY_DIR)/rboot/appcode
 MODULES      += $(SMING_HOME)/appspecific/rboot
 EXTRA_INCDIR ?= include # default to include if not set by user
 
-ENABLE_CUSTOM_LWIP ?= 1
+ENABLE_CUSTOM_LWIP ?= 0
 LWIP_INCDIR = $(SMING_HOME)/system/esp-lwip/lwip/include
 ifeq ($(ENABLE_CUSTOM_LWIP), 1)
 	LWIP_INCDIR = $(SMING_HOME)/third-party/esp-open-lwip/include	
@@ -227,7 +227,7 @@ else ifeq ($(ENABLE_CUSTOM_LWIP), 2)
 endif
 
 EXTRA_INCDIR += $(SMING_HOME)/include $(SMING_HOME)/ $(LWIP_INCDIR) $(SMING_HOME)/system/include \
-				$(SMING_HOME)/Wiring $(SMING_HOME)/Libraries \
+				$(SMING_HOME)/Wiring $(SMING_HOME)/Libraries $(SMING_HOME)/system/esp-lwip \
 				$(SMING_HOME)/Libraries/Adafruit_GFX $(SMING_HOME)/Libraries/Adafruit_Sensor \
 				$(SMING_HOME)/SmingCore $(SMING_HOME)/Services/SpifFS $(SDK_BASE)/../include \
 				$(THIRD_PARTY_DIR)/rboot $(THIRD_PARTY_DIR)/rboot/appcode $(THIRD_PARTY_DIR)/spiffs/src
@@ -341,10 +341,9 @@ endif
 # we will use global WiFi settings from Eclipse Environment Variables, if possible
 WIFI_SSID ?= ""
 WIFI_PWD ?= ""
+# lehn85: changed to one if, incase wifi has no password
 ifneq ($(WIFI_SSID), "")
 	CFLAGS += -DWIFI_SSID=\"$(WIFI_SSID)\"
-endif
-ifneq ($(WIFI_PWD), "")
 	CFLAGS += -DWIFI_PWD=\"$(WIFI_PWD)\"
 endif
 ifeq ($(DISABLE_SPIFFS), 1)
