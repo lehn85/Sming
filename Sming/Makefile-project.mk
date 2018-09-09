@@ -552,7 +552,7 @@ endif
 	$(TERMINAL)
 
 #lehn85 added more options when flash
-flash_nt:
+flash_nt: all
 	$(vecho) "Killing Terminal to free $(COM_PORT)"
 	-$(Q) $(KILL_TERM)
 ifeq ($(DISABLE_SPIFFS), 1)
@@ -561,13 +561,13 @@ else
 	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN) $(basename $(IMAGE_SDK)) $(FW_BASE)/$(IMAGE_SDK) $(SPIFF_START_OFFSET) $(SPIFF_BIN_OUT)
 endif
 	
-flash_apponly:
+flash_apponly: all
 	$(vecho) "Flash app only"
 	-$(Q) $(KILL_TERM)
 	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN)
 	$(TERMINAL)
 	
-flash_app:
+flash_app: all
 	$(vecho) "Flash app+sdk"
 	-$(Q) $(KILL_TERM)
 	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN) $(basename $(IMAGE_SDK)) $(FW_BASE)/$(IMAGE_SDK)
