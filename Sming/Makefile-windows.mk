@@ -10,7 +10,7 @@ SDK_TOOLS	 ?= $(ESP_HOME)/utils/ESP8266
 
 # Other tools mappings
 ESPTOOL		 ?= $(SDK_TOOLS)/esptool.exe
-KILL_TERM    ?= taskkill.exe -f -im putty.exe -fi "Windowtitle eq COM*" || exit 0
+KILL_TERM    ?= taskkill.exe -f -im putty.exe || exit 0
 GET_FILESIZE ?= stat --printf="%s"
 TERMINAL     ?= start "$(SDK_TOOLS)/../putty.exe" -serial $(COM_PORT) -sercfg $(COM_SPEED_SERIAL)
 MEMANALYZER  ?= $(SDK_TOOLS)/memanalyzer.exe $(OBJDUMP).exe
