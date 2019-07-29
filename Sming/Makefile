@@ -37,6 +37,8 @@ GIT ?= git
 
 # Detect OS and build environment
 UNAME := $(shell uname -s)
+#${info uname $(UNAME)}
+#${info OS $(OS)}
 
 ifeq ($(OS),Windows_NT)
   # Convert Windows paths to POSIX paths
@@ -47,6 +49,10 @@ ifeq ($(OS),Windows_NT)
 endif
 
 ifneq ($(filter MINGW32_NT%,$(UNAME)),)
+# when use mingw32
+  UNAME := Windows
+else ifneq ($(filter MSYS_NT%,$(UNAME)),)
+# when use msys
   UNAME := Windows
 else ifneq ($(filter CYGWIN%,$(UNAME)),)
   # Cygwin Detected

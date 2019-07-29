@@ -91,6 +91,10 @@ ifeq ($(OS),Windows_NT)
 endif
 
 ifneq ($(filter MINGW32_NT%,$(UNAME)),)
+# when use mingw32
+  UNAME := Windows
+else ifneq ($(filter MSYS_NT%,$(UNAME)),)
+# when use msys
   UNAME := Windows
 else ifneq ($(filter CYGWIN%,$(UNAME)),)
   # Cygwin Detected
