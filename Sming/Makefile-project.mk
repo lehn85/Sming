@@ -27,7 +27,7 @@ SPI_SPEED ?= 40
 # SPI_MODE: qio, qout, dio, dout
 SPI_MODE ?= qio
 # SPI_SIZE: 512K, 256K, 1M, 2M, 4M
-SPI_SIZE ?= 4M
+SPI_SIZE ?= 512K
 
 ### Debug output parameters
 # By default `debugf` does not print file name and line number. If you want this enabled set the directive below to 1
@@ -49,7 +49,7 @@ INIT_BIN_ADDR =  0x7c000
 BLANK_BIN_ADDR =  0x4b000
 
 # esptool2 path
-ESPTOOL2 ?= $(SMING_HOME)/../tools/esptool2/esptool2
+ESPTOOL2 ?= $(SMING_HOME)/esptool2/esptool2
 # esptool2 parameters for rBootLESS images
 ESPTOOL2_SECTS		?= .text .data .rodata
 ESPTOOL2_MAIN_ARGS	?= -quiet -bin -boot0
@@ -91,6 +91,10 @@ ifeq ($(OS),Windows_NT)
 endif
 
 ifneq ($(filter MINGW32_NT%,$(UNAME)),)
+# when use mingw32
+  UNAME := Windows
+else ifneq ($(filter MSYS_NT%,$(UNAME)),)
+# when use msys
   UNAME := Windows
 else ifneq ($(filter CYGWIN%,$(UNAME)),)
   # Cygwin Detected
@@ -552,7 +556,7 @@ endif
 	$(TERMINAL)
 
 #lehn85 added more options when flash
-flash_nt: all
+flash_nt:
 	$(vecho) "Killing Terminal to free $(COM_PORT)"
 	-$(Q) $(KILL_TERM)
 ifeq ($(DISABLE_SPIFFS), 1)
@@ -561,13 +565,13 @@ else
 	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN) $(basename $(IMAGE_SDK)) $(FW_BASE)/$(IMAGE_SDK) $(SPIFF_START_OFFSET) $(SPIFF_BIN_OUT)
 endif
 	
-flash_apponly: all
+flash_apponly:
 	$(vecho) "Flash app only"
 	-$(Q) $(KILL_TERM)
 	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN)
 	$(TERMINAL)
 	
-flash_app: all
+flash_app:
 	$(vecho) "Flash app+sdk"
 	-$(Q) $(KILL_TERM)
 	$(ESPTOOL) -p $(COM_PORT) -b $(COM_SPEED_ESPTOOL) write_flash $(flashimageoptions) $(basename $(IMAGE_MAIN)) $(FW_BASE)/$(IMAGE_MAIN) $(basename $(IMAGE_SDK)) $(FW_BASE)/$(IMAGE_SDK)
